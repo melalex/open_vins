@@ -50,6 +50,7 @@ class StateHelper;
 class UpdaterMSCKF;
 class UpdaterSLAM;
 class UpdaterZeroVelocity;
+class UpdaterWheel;
 class Propagator;
 
 /**
@@ -81,6 +82,12 @@ public:
   void feed_measurement_camera(const ov_core::CameraData &message) { track_image_and_update(message); }
 
   /**
+   * @brief Feed function for wheel odometry data
+   * @param message Contains our timestamp and wheel information
+   */
+  void feed_measurement_wheel(const ov_core::WheelData &message);
+
+  /**
    * @brief Feed function for a synchronized simulated cameras
    * @param timestamp Time that this image was collected
    * @param camids Camera ids that we have simulated measurements for
@@ -94,6 +101,9 @@ public:
    * @param imustate State in the MSCKF ordering: [time(sec),q_GtoI,p_IinG,v_IinG,b_gyro,b_accel]
    */
   void initialize_with_gt(Eigen::Matrix<double, 17, 1> imustate);
+
+  /// Accessor to the wheel odometry updater (nullptr if we are not using wheel odometry)
+  std::shared_ptr<UpdaterWheel> get_updater_wheel() { return updaterWheel; }
 
   /// If we are initialized or not
   bool initialized() { return is_initialized_vio && timelastupdate != -1; }
@@ -205,6 +215,9 @@ protected:
 
   /// Our zero velocity tracker
   std::shared_ptr<UpdaterZeroVelocity> updaterZUPT;
+
+  /// Our wheel odometry updater
+  std::shared_ptr<UpdaterWheel> updaterWheel;
 
   /// This is the queue of measurement times that have come in since we starting doing initialization
   /// After we initialize, we will want to prop & update to the latest timestamp quickly

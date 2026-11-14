@@ -41,6 +41,7 @@
 #include "state/StateHelper.h"
 #include "update/UpdaterMSCKF.h"
 #include "update/UpdaterSLAM.h"
+#include "update/UpdaterWheel.h"
 #include "update/UpdaterZeroVelocity.h"
 
 using namespace ov_core;
@@ -59,6 +60,7 @@ VioManager::VioManager(VioManagerOptions &params_) : thread_init_running(false),
   params.print_and_load_estimator();
   params.print_and_load_noise();
   params.print_and_load_state();
+  params.print_and_load_wheel();
   params.print_and_load_trackers();
 
   // This will globally set the thread count we will use
@@ -87,6 +89,17 @@ VioManager::VioManager(VioManagerOptions &params_) : thread_init_running(false),
   temp_camimu_dt(0) = params.calib_camimu_dt;
   state->_calib_dt_CAMtoIMU->set_value(temp_camimu_dt);
   state->_calib_dt_CAMtoIMU->set_fej(temp_camimu_dt);
+
+  // Wheel odometry calibration
+  Eigen::VectorXd temp_wheelimu_dt;
+  temp_wheelimu_dt.resize(1);
+  temp_wheelimu_dt(0) = params.calib_wheelimu_dt;
+  state->_calib_dt_WHEELtoIMU->set_value(temp_wheelimu_dt);
+  state->_calib_dt_WHEELtoIMU->set_fej(temp_wheelimu_dt);
+  state->_calib_IMUtoWHEEL->set_value(params.wheel_extrinsics);
+  state->_calib_IMUtoWHEEL->set_fej(params.wheel_extrinsics);
+  state->_calib_wheel_intrinsics->set_value(params.wheel_intrinsics);
+  state->_calib_wheel_intrinsics->set_fej(params.wheel_intrinsics);
 
   // Loop through and load each of the cameras
   state->_cam_intrinsics_cameras = params.camera_intrinsics;
@@ -160,6 +173,17 @@ VioManager::VioManager(VioManagerOptions &params_) : thread_init_running(false),
     updaterZUPT = std::make_shared<UpdaterZeroVelocity>(params.zupt_options, params.imu_noises, trackFEATS->get_feature_database(),
                                                         propagator, params.gravity_mag, params.zupt_max_velocity,
                                                         params.zupt_noise_multiplier, params.zupt_max_disparity);
+  }
+
+  // If we are using wheel odometry, then create the updater
+  if (params.use_wheel) {
+    updaterWheel = std::make_shared<UpdaterWheel>(params.wheel_options);
+  }
+}
+
+void VioManager::feed_measurement_wheel(const ov_core::WheelData &message) {
+  if (updaterWheel != nullptr) {
+    updaterWheel->feed_wheel(message);
   }
 }
 
@@ -339,6 +363,11 @@ void VioManager::do_feature_propagate_update(const ov_core::CameraData &message)
   // NOTE: then no need to prop since we already are at the desired timestep
   if (state->_timestamp != message.timestamp) {
     propagator->propagate_and_clone(state, message.timestamp);
+
+    // Update the two newest clones with the wheel odometry between them
+    if (updaterWheel != nullptr && state->_timestamp == message.timestamp) {
+      updaterWheel->update(state, propagator->get_last_clone_w());
+    }
   }
   rT3 = boost::posix_time::microsec_clock::local_time();
 

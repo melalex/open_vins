@@ -31,6 +31,7 @@
 
 #include "state/StateOptions.h"
 #include "update/UpdaterOptions.h"
+#include "update/UpdaterWheelOptions.h"
 #include "utils/NoiseManager.h"
 
 #include "init/InertialInitializerOptions.h"
@@ -66,6 +67,7 @@ struct VioManagerOptions {
 
     // needs to be called last
     print_and_load_state(parser);
+    print_and_load_wheel(parser);
   }
 
   // ESTIMATOR ===============================
@@ -389,6 +391,85 @@ struct VioManagerOptions {
     ss << "q_GYROtoI: " << q_GYROtoIMU.transpose() << std::endl;
     ss << "q_ACCtoI: " << q_ACCtoIMU.transpose() << std::endl;
     PRINT_DEBUG(ss.str().c_str());
+  }
+
+  // WHEEL ODOMETRY ===============================
+
+  /// If we should use wheel odometry measurements
+  bool use_wheel = false;
+
+  /// Update options for the wheel odometry (noises, measurement type, etc)
+  UpdaterWheelOptions wheel_options;
+
+  /// Wheel odometry extrinsics (q_ItoO, p_IinO)
+  Eigen::Matrix<double, 7, 1> wheel_extrinsics = (Eigen::Matrix<double, 7, 1>() << 0, 0, 0, 1, 0, 0, 0).finished();
+
+  /// Time offset between the wheel odometry and the IMU (t_imu = t_wheel + t_off)
+  double calib_wheelimu_dt = 0.0;
+
+  /// Wheel intrinsics (left radius or scale, right radius or scale, baseline)
+  Eigen::Vector3d wheel_intrinsics = Eigen::Vector3d::Ones();
+
+  /**
+   * @brief This function will load and print all wheel odometry parameters.
+   * All of them are optional, and the wheel odometry is off by default.
+   *
+   * @param parser If not null, this parser will be used to load our parameters
+   */
+  void print_and_load_wheel(const std::shared_ptr<ov_core::YamlParser> &parser = nullptr) {
+    if (parser != nullptr) {
+      parser->parse_config("use_wheel", use_wheel, false);
+      std::string type = "Wheel2DAng";
+      parser->parse_config("wheel_type", type, false);
+      if (!UpdaterWheelOptions::type_from_string(type, wheel_options.type)) {
+        PRINT_ERROR(RED "invalid wheel type: %s\n" RESET, type.c_str());
+        PRINT_ERROR(RED "please select a valid type: Wheel2DAng, Wheel2DLin, Wheel2DCen\n" RESET);
+        std::exit(EXIT_FAILURE);
+      }
+      parser->parse_config("wheel_noise_w", wheel_options.noise_w, false);
+      parser->parse_config("wheel_noise_v", wheel_options.noise_v, false);
+      parser->parse_config("wheel_chi2_multipler", wheel_options.chi2_multipler, false);
+      parser->parse_config("wheel_use_yaw", wheel_options.use_yaw, false);
+      parser->parse_config("wheel_noise_floor_yaw", wheel_options.noise_floor_yaw, false);
+      parser->parse_config("wheel_noise_floor_x", wheel_options.noise_floor_x, false);
+      parser->parse_config("wheel_noise_floor_y", wheel_options.noise_floor_y, false);
+      parser->parse_config("wheel_noise_turn", wheel_options.noise_turn, false);
+      parser->parse_config("wheel_max_dt", wheel_options.max_dt, false);
+      parser->parse_config("wheel_max_gap", wheel_options.max_gap, false);
+      parser->parse_config("wheel_timeoffset", calib_wheelimu_dt, false);
+
+      // Extrinsics as the rotation from the IMU to the odometry frame (row-wise) and the IMU position in it
+      std::vector<double> R_ItoO = {1, 0, 0, 0, 1, 0, 0, 0, 1};
+      std::vector<double> p_IinO = {0, 0, 0};
+      std::vector<double> intrinsics = {wheel_intrinsics(0), wheel_intrinsics(1), wheel_intrinsics(2)};
+      parser->parse_config("wheel_R_ItoO", R_ItoO, false);
+      parser->parse_config("wheel_p_IinO", p_IinO, false);
+      parser->parse_config("wheel_intrinsics", intrinsics, false);
+      if (R_ItoO.size() != 9 || p_IinO.size() != 3 || intrinsics.size() != 3) {
+        PRINT_ERROR(RED "wheel_R_ItoO needs 9 values, wheel_p_IinO and wheel_intrinsics need 3\n" RESET);
+        std::exit(EXIT_FAILURE);
+      }
+      Eigen::Matrix3d R;
+      R << R_ItoO[0], R_ItoO[1], R_ItoO[2], R_ItoO[3], R_ItoO[4], R_ItoO[5], R_ItoO[6], R_ItoO[7], R_ItoO[8];
+      wheel_extrinsics.block(0, 0, 4, 1) = ov_core::rot_2_quat(R);
+      wheel_extrinsics.block(4, 0, 3, 1) << p_IinO[0], p_IinO[1], p_IinO[2];
+      wheel_intrinsics << intrinsics[0], intrinsics[1], intrinsics[2];
+      if (wheel_options.type == UpdaterWheelOptions::WheelType::WHEEL2D_CEN && state_options.do_calib_wheel_intrinsics) {
+        PRINT_ERROR(RED "the Wheel2DCen wheel type has no intrinsics to calibrate\n" RESET);
+        std::exit(EXIT_FAILURE);
+      }
+    }
+    PRINT_DEBUG("WHEEL PARAMETERS:\n");
+    PRINT_DEBUG("  - use_wheel: %d\n", use_wheel);
+    if (use_wheel) {
+      wheel_options.print();
+      std::stringstream ss;
+      ss << "wheel_extrinsic(0:3):" << std::endl << wheel_extrinsics.block(0, 0, 4, 1).transpose() << std::endl;
+      ss << "wheel_extrinsic(4:6):" << std::endl << wheel_extrinsics.block(4, 0, 3, 1).transpose() << std::endl;
+      ss << "wheel_intrinsics:" << std::endl << wheel_intrinsics.transpose() << std::endl;
+      PRINT_DEBUG(ss.str().c_str());
+      PRINT_DEBUG("  - wheel_timeoffset: %.4f\n", calib_wheelimu_dt);
+    }
   }
 
   // TRACKERS ===============================

@@ -64,6 +64,7 @@ list(APPEND LIBRARY_SOURCES
         src/update/UpdaterHelper.cpp
         src/update/UpdaterMSCKF.cpp
         src/update/UpdaterSLAM.cpp
+        src/update/UpdaterWheel.cpp
         src/update/UpdaterZeroVelocity.cpp
 )
 list(APPEND LIBRARY_SOURCES src/ros/ROS2Visualizer.cpp src/ros/ROSVisualizerHelper.cpp)
@@ -114,3 +115,8 @@ install(DIRECTORY ../config/ DESTINATION share/${PROJECT_NAME}/config/)
 
 # finally define this as the package
 ament_package()
+
+add_executable(test_wheel_update src/test_wheel_update.cpp)
+ament_target_dependencies(test_wheel_update ${ament_libraries})
+target_link_libraries(test_wheel_update ov_msckf_lib ${thirdparty_libraries})
+install(TARGETS test_wheel_update DESTINATION lib/${PROJECT_NAME})

@@ -130,6 +130,29 @@ State::State(StateOptions &options) {
     }
   }
 
+  // Wheel odometry calibration: extrinsics, time offset, and intrinsics
+  _calib_IMUtoWHEEL = std::make_shared<PoseJPL>();
+  _calib_dt_WHEELtoIMU = std::make_shared<Vec>(1);
+  _calib_wheel_intrinsics = std::make_shared<Vec>(3);
+  Eigen::Vector3d _wheel_default = Eigen::Vector3d::Ones();
+  _calib_wheel_intrinsics->set_value(_wheel_default);
+  _calib_wheel_intrinsics->set_fej(_wheel_default);
+  if (_options.do_calib_wheel_extrinsics) {
+    _calib_IMUtoWHEEL->set_local_id(current_id);
+    _variables.push_back(_calib_IMUtoWHEEL);
+    current_id += _calib_IMUtoWHEEL->size();
+  }
+  if (_options.do_calib_wheel_timeoffset) {
+    _calib_dt_WHEELtoIMU->set_local_id(current_id);
+    _variables.push_back(_calib_dt_WHEELtoIMU);
+    current_id += _calib_dt_WHEELtoIMU->size();
+  }
+  if (_options.do_calib_wheel_intrinsics) {
+    _calib_wheel_intrinsics->set_local_id(current_id);
+    _variables.push_back(_calib_wheel_intrinsics);
+    current_id += _calib_wheel_intrinsics->size();
+  }
+
   // Finally initialize our covariance to small value
   _Cov = std::pow(1e-3, 2) * Eigen::MatrixXd::Identity(current_id, current_id);
 
@@ -162,5 +185,18 @@ State::State(StateOptions &options) {
       _Cov.block(_cam_intrinsics.at(i)->id() + 4, _cam_intrinsics.at(i)->id() + 4, 4, 4) =
           std::pow(0.005, 2) * Eigen::MatrixXd::Identity(4, 4);
     }
+  }
+  if (_options.do_calib_wheel_extrinsics) {
+    _Cov.block(_calib_IMUtoWHEEL->id(), _calib_IMUtoWHEEL->id(), 3, 3) =
+        std::pow(_options.wheel_prior_ext_ori, 2) * Eigen::MatrixXd::Identity(3, 3);
+    _Cov.block(_calib_IMUtoWHEEL->id() + 3, _calib_IMUtoWHEEL->id() + 3, 3, 3) =
+        std::pow(_options.wheel_prior_ext_pos, 2) * Eigen::MatrixXd::Identity(3, 3);
+  }
+  if (_options.do_calib_wheel_timeoffset) {
+    _Cov(_calib_dt_WHEELtoIMU->id(), _calib_dt_WHEELtoIMU->id()) = std::pow(_options.wheel_prior_dt, 2);
+  }
+  if (_options.do_calib_wheel_intrinsics) {
+    _Cov.block(_calib_wheel_intrinsics->id(), _calib_wheel_intrinsics->id(), 3, 3) =
+        std::pow(_options.wheel_prior_int, 2) * Eigen::MatrixXd::Identity(3, 3);
   }
 }

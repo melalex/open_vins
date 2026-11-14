@@ -86,6 +86,7 @@ list(APPEND LIBRARY_SOURCES
         src/update/UpdaterHelper.cpp
         src/update/UpdaterMSCKF.cpp
         src/update/UpdaterSLAM.cpp
+        src/update/UpdaterWheel.cpp
         src/update/UpdaterZeroVelocity.cpp
 )
 if (catkin_FOUND AND ENABLE_ROS)
@@ -158,3 +159,11 @@ install(TARGETS test_sim_repeat
         RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
+
+add_executable(test_wheel_update src/test_wheel_update.cpp)
+target_link_libraries(test_wheel_update ov_msckf_lib ${thirdparty_libraries})
+install(TARGETS test_wheel_update
+        ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+        LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+        RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)

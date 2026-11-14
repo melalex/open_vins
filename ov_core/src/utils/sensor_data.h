@@ -47,6 +47,28 @@ struct ImuData {
 };
 
 /**
+ * @brief Struct for a single wheel odometry measurement.
+ *
+ * What the two values are depends on the wheel type the estimator is configured with:
+ * left and right wheel angular velocities (rad/s), left and right wheel linear velocities (m/s),
+ * or the angular (rad/s) and linear (m/s) velocity of the odometry frame.
+ */
+struct WheelData {
+
+  /// Timestamp of the reading
+  double timestamp;
+
+  /// First value of the reading (left wheel, or the angular velocity of the odometry frame)
+  double m1;
+
+  /// Second value of the reading (right wheel, or the linear velocity of the odometry frame)
+  double m2;
+
+  /// Sort function to allow for using of STL containers
+  bool operator<(const WheelData &other) const { return timestamp < other.timestamp; }
+};
+
+/**
  * @brief Struct for a collection of camera measurements.
  *
  * For each image we have a camera id and timestamp that it occured at.

@@ -179,6 +179,15 @@ public:
   /// Rotation from accelerometer to the "IMU" gyroscope frame frame (rpng model)
   std::shared_ptr<ov_type::JPLQuat> _calib_imu_ACCtoIMU;
 
+  /// Calibration pose of the wheel odometry frame (R_ItoO, p_IinO)
+  std::shared_ptr<ov_type::PoseJPL> _calib_IMUtoWHEEL;
+
+  /// Time offset base IMU to wheel odometry (t_imu = t_wheel + t_off)
+  std::shared_ptr<ov_type::Vec> _calib_dt_WHEELtoIMU;
+
+  /// Wheel intrinsics (left radius or scale, right radius or scale, baseline)
+  std::shared_ptr<ov_type::Vec> _calib_wheel_intrinsics;
+
 private:
   // Define that the state helper is a friend class of this class
   // This will allow it to access the below functions which should normally not be called

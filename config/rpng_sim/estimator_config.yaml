@@ -34,6 +34,32 @@ zupt_noise_multiplier: 1
 zupt_max_disparity: 0 # set to 0 for only imu-based
 zupt_only_at_beginning: false
 
+# wheel odometry update parameters (all optional, see the "Wheel Odometry Update" documentation page)
+# readings are fed with VioManager::feed_measurement_wheel()
+use_wheel: false
+wheel_type: "Wheel2DAng" # Wheel2DAng (left/right rad/s), Wheel2DLin (left/right m/s), Wheel2DCen (rad/s and m/s of the body)
+wheel_noise_w: 0.01 # rad/s, white noise of an angular velocity reading
+wheel_noise_v: 0.01 # m/s, white noise of a linear velocity reading
+wheel_chi2_multipler: 1
+wheel_use_yaw: true # false for vehicles whose wheel speed difference is a poor yaw source (e.g. skid-steering)
+wheel_noise_floor_yaw: 0.0 # rad, added to the preintegrated yaw
+wheel_noise_floor_x: 0.0 # m, added to the preintegrated forward displacement
+wheel_noise_floor_y: 0.0 # m, added to the preintegrated lateral displacement
+wheel_noise_turn: 0.0 # m/rad, added to the preintegrated displacement per radian turned
+wheel_max_dt: 1.0 # s, max time between two clones to integrate over
+wheel_max_gap: 0.5 # s, max time between two readings to integrate over
+wheel_R_ItoO: [1, 0, 0, 0, 1, 0, 0, 0, 1] # rotation from the IMU to the odometry frame (x forward, y left, z up), row-wise
+wheel_p_IinO: [0, 0, 0] # position of the IMU in the odometry frame
+wheel_intrinsics: [0.1, 0.1, 0.5] # left radius (or scale), right radius (or scale), baseline
+wheel_timeoffset: 0.0 # t_imu = t_wheel + wheel_timeoffset
+calib_wheel_extrinsics: false
+calib_wheel_timeoffset: false
+calib_wheel_intrinsics: false
+wheel_prior_ext_ori: 0.01 # rad
+wheel_prior_ext_pos: 0.1 # m
+wheel_prior_dt: 0.01 # s
+wheel_prior_int: 0.01
+
 # ==================================================================
 # ==================================================================
 

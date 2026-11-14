@@ -109,6 +109,9 @@ public:
    */
   void propagate_and_clone(std::shared_ptr<State> state, double timestamp);
 
+  /// Angular velocity in the IMU frame at the last clone propagate_and_clone() made
+  Eigen::Vector3d get_last_clone_w() { return last_clone_w; }
+
   /**
    * @brief Gets what the state and its covariance will be at a given timestamp
    *
@@ -444,6 +447,9 @@ protected:
   // Estimate for time offset at last propagation time
   double last_prop_time_offset = 0.0;
   bool have_last_prop_time_offset = false;
+
+  // Angular velocity at the last clone
+  Eigen::Vector3d last_clone_w = Eigen::Vector3d::Zero();
 
   // Cache of the last fast propagated state
   std::atomic<bool> cache_imu_valid;

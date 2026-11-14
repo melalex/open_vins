@@ -58,6 +58,27 @@ struct StateOptions {
   /// Bool to determine whether or not to calibrate the Gravity sensitivity
   bool do_calib_imu_g_sensitivity = false;
 
+  /// Bool to determine whether or not to calibrate the wheel to IMU pose
+  bool do_calib_wheel_extrinsics = false;
+
+  /// Bool to determine whether or not to calibrate the wheel to IMU time offset
+  bool do_calib_wheel_timeoffset = false;
+
+  /// Bool to determine whether or not to calibrate the wheel intrinsics
+  bool do_calib_wheel_intrinsics = false;
+
+  /// Prior sigma of the wheel to IMU orientation (rad)
+  double wheel_prior_ext_ori = 0.01;
+
+  /// Prior sigma of the wheel to IMU position (m)
+  double wheel_prior_ext_pos = 0.1;
+
+  /// Prior sigma of the wheel to IMU time offset (s)
+  double wheel_prior_dt = 0.01;
+
+  /// Prior sigma of the wheel intrinsics
+  double wheel_prior_int = 0.01;
+
   /// IMU intrinsic models
   enum ImuModel { KALIBR, RPNG };
 
@@ -118,6 +139,14 @@ struct StateOptions {
       parser->parse_config("calib_imu_intrinsics", do_calib_imu_intrinsics);
       parser->parse_config("calib_imu_g_sensitivity", do_calib_imu_g_sensitivity);
 
+      parser->parse_config("calib_wheel_extrinsics", do_calib_wheel_extrinsics, false);
+      parser->parse_config("calib_wheel_timeoffset", do_calib_wheel_timeoffset, false);
+      parser->parse_config("calib_wheel_intrinsics", do_calib_wheel_intrinsics, false);
+      parser->parse_config("wheel_prior_ext_ori", wheel_prior_ext_ori, false);
+      parser->parse_config("wheel_prior_ext_pos", wheel_prior_ext_pos, false);
+      parser->parse_config("wheel_prior_dt", wheel_prior_dt, false);
+      parser->parse_config("wheel_prior_int", wheel_prior_int, false);
+
       // State parameters
       parser->parse_config("max_clones", max_clone_size);
       parser->parse_config("max_slam", max_slam_features);
@@ -162,6 +191,9 @@ struct StateOptions {
     PRINT_DEBUG("  - calib_cam_timeoffset: %d\n", do_calib_camera_timeoffset);
     PRINT_DEBUG("  - calib_imu_intrinsics: %d\n", do_calib_imu_intrinsics);
     PRINT_DEBUG("  - calib_imu_g_sensitivity: %d\n", do_calib_imu_g_sensitivity);
+    PRINT_DEBUG("  - calib_wheel_extrinsics: %d\n", do_calib_wheel_extrinsics);
+    PRINT_DEBUG("  - calib_wheel_timeoffset: %d\n", do_calib_wheel_timeoffset);
+    PRINT_DEBUG("  - calib_wheel_intrinsics: %d\n", do_calib_wheel_intrinsics);
     PRINT_DEBUG("  - imu_model: %d\n", imu_model);
     PRINT_DEBUG("  - max_clones: %d\n", max_clone_size);
     PRINT_DEBUG("  - max_slam: %d\n", max_slam_features);

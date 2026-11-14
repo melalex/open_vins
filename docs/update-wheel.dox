@@ -1,0 +1,77 @@
+/**
+
+
+@page update-wheel Wheel Odometry Update
+
+Ground vehicles often move in a plane at near constant velocity or acceleration, which is a motion that leaves a monocular visual-inertial system poorly observable (e.g. its scale).
+Wheel readings are available on most of them, and can be fused to address this.
+The update here follows the visual-inertial-wheel odometry of Lee et al. @cite Lee2020IROS : the wheel readings between the two newest clones are integrated into a single 2D relative pose, which then updates these two clones.
+The wheel intrinsics, the wheel to IMU extrinsics and the time offset between them can be calibrated online.
+It is disabled by default (see `use_wheel`), and is fed through ov_msckf::VioManager::feed_measurement_wheel().
+
+
+@section update-wheel-meas Preintegrated Measurement
+
+The odometry frame \f$\{O\}\f$ has its x-axis forward, y-axis left and z-axis up, and the wheels move it along its x-axis only.
+For a differential drive with left and right wheel angular velocities \f$\omega_l,\omega_r\f$, wheel radii \f$r_l,r_r\f$ and baseline \f$b\f$ we have:
+
+\f{align*}{
+    {}^O\omega &= (\omega_r r_r - \omega_l r_l) / b \\
+    {}^Ov &= (\omega_r r_r + \omega_l r_l) / 2
+\f}
+
+Integrating the 2D kinematics from the clone time \f$t_k\f$ to \f$t_{k+1}\f$ gives the relative yaw and position of the odometry frame:
+
+\f{align*}{
+    \mathbf{z}_{k+1} =
+    \begin{bmatrix} {}^{O_{k+1}}_{O_k}\theta \\ {}^{O_k}\mathbf{d}_{O_{k+1}} \end{bmatrix} =
+    \begin{bmatrix}
+    \int {}^{O_t}\omega ~dt \\
+    \int {}^{O_t}v \cos({}^{O_t}_{O_k}\theta) ~dt \\
+    \int {}^{O_t}v \sin({}^{O_t}_{O_k}\theta) ~dt
+    \end{bmatrix}
+\f}
+
+The covariance of this measurement and its Jacobian in respect to the intrinsics \f$[r_l~r_r~b]\f$ are integrated along with it, one reading at a time.
+The state predicts it through the two clones and the extrinsics \f$\{{}^O_I\mathbf{R},{}^O\mathbf{p}_I\}\f$:
+
+\f{align*}{
+    {}^{O_{k+1}}_{O_k}\theta &= \mathbf{e}_3^\top \mathrm{Log}({}^O_I\mathbf{R} {}^{I_{k+1}}_G\mathbf{R} {}^{I_k}_G\mathbf{R}^\top {}^O_I\mathbf{R}^\top) \\
+    {}^{O_k}\mathbf{d}_{O_{k+1}} &= \Lambda \Big( {}^O_I\mathbf{R} {}^{I_k}_G\mathbf{R} ({}^G\mathbf{p}_{I_{k+1}} + {}^{I_{k+1}}_G\mathbf{R}^\top {}^I\mathbf{p}_O - {}^G\mathbf{p}_{I_k}) + {}^O\mathbf{p}_I \Big)
+\f}
+
+where \f$\Lambda = [\mathbf{e}_1~\mathbf{e}_2]^\top\f$.
+The wheel readings are integrated over the clone times shifted by the current estimate of the time offset \f${}^Ot_I\f$ (\f$t_{imu} = t_{wheel} + {}^Ot_I\f$), and an error in it moves both poses along their velocities, which gives its Jacobian.
+The update is rejected if it fails a chi-squared test.
+
+
+@section update-wheel-types Measurement Types
+
+- `Wheel2DAng` - left and right wheel angular velocities (rad/s). The intrinsics are the left radius, right radius and baseline.
+- `Wheel2DLin` - left and right wheel linear velocities (m/s). The intrinsics are the left scale, right scale and baseline.
+- `Wheel2DCen` - angular (rad/s) and linear (m/s) velocity of the odometry frame. There are no intrinsics.
+
+
+@section update-wheel-model Where the Kinematic Model Does Not Hold
+
+The differential drive model assumes that the wheels do not slip and that the motion is planar between two clones.
+On a skid-steering vehicle the wheel speed difference is a poor yaw source, thus the yaw of the measurement can be left out (`wheel_use_yaw`) so that only the displacement is used.
+Slip and non-planar motion can be modeled with additional measurement noise: a constant one (`wheel_noise_floor_yaw`, `wheel_noise_floor_x`, `wheel_noise_floor_y`) and one that grows with how much the vehicle turned between the two clones (`wheel_noise_turn`).
+
+
+@section update-wheel-degenerate Degenerate Motions
+
+As analyzed in @cite Lee2020IROS the calibration parameters are not observable under all motions:
+
+| Motion | Unobservable |
+|---|---|
+| Pure translation | \f${}^O\mathbf{p}_I\f$, \f$b\f$ |
+| 1-axis rotation | \f${}^O\mathbf{p}_I\f$ (along the rotation axis) |
+| Constant angular and linear velocity | \f${}^Ot_I\f$ |
+| No left / right wheel velocity | \f$r_l\f$ / \f$r_r\f$ |
+| No motion | all |
+
+Only calibrate what the expected motion excites, and give the rest a good prior.
+
+
+*/
